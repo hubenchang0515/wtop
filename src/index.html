@@ -1,0 +1,228 @@
+<html>
+    <head>
+        <title>WTOP</title>
+        <script src="/echarts.min.js"></script>
+    </head>
+    <body>
+        <div id="main" style="width: 100%;height: 100%;"></div>
+        <script type="text/javascript">
+            let option = {
+                title: [
+                    {text: 'CPU Usage'},
+                    {text: 'Memory Usage', top: '50%'},
+                    {text: 'Disk Usage', top: '50%', left: '50%'}
+                ],
+                tooltip: {
+                    trigger: "axis"
+                },
+                radar: {
+                    center: ['25%', '25%'],
+                    radius: '40%',
+                    indicator: []
+                },
+                grid: [
+                    {
+                        left: '40%',
+                        right: 50,
+                        height: '40%',
+                        containLabel: true
+                    },
+                ],
+                xAxis: {
+                    gridIndex: 0, 
+                    type: 'category',
+                    data:Array.from({length:60}, (v,k) => 60 - k),
+                    axisTick:{ show:false },
+                    axisLabel:{ show:false }
+                },
+                yAxis: {gridIndex: 0, type: 'value', min: 0, max: 100},
+                series: []
+            };
+
+            let radar_indicator = [];
+
+            let cpu_radar = {
+                name: 'CPU',
+                type: 'radar',
+                areaStyle: {},
+                tooltip: {
+                    trigger: 'item'
+                },
+                data: [
+                    {
+                        value: [],
+                        name: "Usage"
+                    }
+                ]
+            };
+
+            let cpu_lines = [];
+
+            let memory = {
+                name: 'Memory',
+                type: 'pie',
+                center: ['25%', '75%'],
+                radius: [0, '25%'],
+                color: ['#f50057', '#fdd835', '#ff5722', '#03a9f4'],
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c}'
+                },
+                data: [
+                    {name: 'Used', value: 10}, 
+                    {name: 'Buffers', value: 10},
+                    {name: 'Cached', value: 10},
+                    {name: 'Free', value: 100},
+                ],
+                label: {
+                    formatter: (params) => {
+                        const unit = ['KB', 'MB', 'GB', 'TB'];
+                        let v = params.value;
+                        let i = 0;
+                        while (v > 1024 && i + 1 < unit.length) {
+                            v = v / 1024
+                            i = i + 1
+                        }
+                        return `${params.name}: ${v.toFixed(2)}${unit[i]}(${params.percent}%)`;
+                    },
+                }
+            };
+
+            let swap = {
+                name: 'Swap',
+                type: 'pie',
+                center: ['25%', '75%'],
+                radius: ['30%', '40%'],
+                color: ['#f50057', '#ff5722', '#03a9f4'],
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c}'
+                },
+                data: [
+                    {name: 'Used', value: 10}, 
+                    {name: 'Cached', value: 10},
+                    {name: 'Free', value: 100}
+                ],
+                label: {
+                    formatter: (params) => {
+                        const unit = ['KB', 'MB', 'GB', 'TB'];
+                        let v = params.value;
+                        let i = 0;
+                        while (v > 1024 && i + 1 < unit.length) {
+                            v = v / 1024
+                            i = i + 1
+                        }
+                        return `${params.name}: ${v.toFixed(2)}${unit[i]}(${params.percent}%)`;
+                    },
+                }
+            };
+
+            let disk = {
+                name: 'Disk',
+                type: 'pie',
+                center: ['75%', '75%'],
+                radius: ['0%', '40%'],
+                color: ['#f50057', '#03a9f4'],
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c}'
+                },
+                data: [
+                    {name: 'Used', value: 10}, 
+                    {name: 'Free', value: 100}
+                ],
+                label: {
+                    formatter: (params) => {
+                        const unit = ['B', 'KB', 'MB', 'GB', 'TB'];
+                        let v = params.value;
+                        let i = 0;
+                        while (v > 1024 && i + 1 < unit.length) {
+                            v = v / 1024
+                            i = i + 1
+                        }
+                        return `${params.name}: ${v.toFixed(2)}${unit[i]}(${params.percent}%)`;
+                    },
+                }
+            };
+
+            let chart = echarts.init(document.getElementById('main'));
+            let refresh = () => {
+                option.radar.indicator = radar_indicator;
+                option.series = [
+                    cpu_radar, memory, swap, disk
+                ];
+                option.series = option.series.concat(cpu_lines);
+                chart.setOption(option);
+            }
+
+            setInterval(() => {
+                let cpuRequest = new XMLHttpRequest();
+                cpuRequest.open('GET', '/cpu', true);
+                cpuRequest.onreadystatechange = () => {
+                    if (cpuRequest.readyState != 4 || cpuRequest.status != 200)
+                        return;
+                    
+                    let response = JSON.parse(cpuRequest.response);
+                    if (radar_indicator.length != response.labels.length) {
+                        option.yAxis.max = response.labels.length * 100;
+                        response.labels.forEach((label) => {
+                            radar_indicator.push({ name: label, max: 100 });
+                        });
+                    }
+                    if (cpu_lines.length != response.labels.length) {
+                        response.labels.forEach((label, index) => {
+                            cpu_lines.push({
+                                name: label,
+                                type: 'line',
+                                stack: 'Total',
+                                areaStyle: {},
+                                data: [response.usages[index]]
+                            });
+                        });
+                    }
+                    cpu_radar.data[0].value = response.usages;
+                    cpu_radar.data[0].value.forEach((value, index, arr) => {
+                        arr[index] = value ? value.toFixed(2):0;
+                        cpu_lines[index].data.push(value ? value:0);
+                        if (cpu_lines[index].data.length > 60) {
+                            cpu_lines[index].data.shift();
+                        }
+                    });
+                    refresh();
+                }
+                cpuRequest.send();
+
+                let memRequest = new XMLHttpRequest();
+                memRequest.open('GET', '/memory', true);
+                memRequest.onreadystatechange = () => {
+                    if (memRequest.readyState != 4 || memRequest.status != 200)
+                        return;
+
+                    let response = JSON.parse(memRequest.response);
+                    memory.data[0].value = response.used;
+                    memory.data[1].value = response.buffers;
+                    memory.data[2].value = response.cached;
+                    memory.data[3].value = response.free;
+                    swap.data[0].value = response.swap_used;
+                    swap.data[1].value = response.swap_cached;
+                    swap.data[2].value = response.swap_free;
+                    refresh();
+                }
+                memRequest.send();
+
+                let diskRequest = new XMLHttpRequest();
+                diskRequest.open('GET', '/disk', true);
+                diskRequest.onreadystatechange = () => {
+                    if (diskRequest.readyState != 4 || diskRequest.status != 200)
+                        return;
+
+                    let response = JSON.parse(diskRequest.response);
+                    disk.data[0].value = response.used;
+                    disk.data[1].value = response.free;
+                    refresh();
+                }
+                diskRequest.send();
+            }, 1000);
+        </script>
+    </body>
+</html>
