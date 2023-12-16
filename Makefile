@@ -13,7 +13,7 @@ disk.o: src/disk.c
 	cc -c src/disk.c
 
 clean:
-	rm libdisk.a disk.o
+	rm -f libdisk.a disk.o
 	cargo clean
 
 install:
