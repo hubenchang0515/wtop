@@ -140,7 +140,7 @@
                     name: "Total",
                     value: 0,
                     itemStyle: {
-                        color: '#304ffe'
+                        color: '#448aff'
                     },
                     children: []
                 }],
@@ -250,7 +250,7 @@
                             name: ele.label,
                             value: ele.used + ele.free,
                             itemStyle: {
-                                color: '#304ffe'
+                                color: ele.label == 'rootfs' ? '#304ffe' : '#448aff'
                             },
                             children: [
                                 {
