@@ -139,7 +139,7 @@ impl Cpu {
         let content = std::fs::read_to_string(path).unwrap();
         for line in content.split("\n") {
             let items:Vec<&str> = line.split_whitespace().collect();
-            if items.len() >= CPU_ITEMS && items[0].trim().starts_with("cpu") {
+            if items.len() >= CPU_ITEMS && items[0].trim().starts_with("cpu") && items[0].trim() != "cpu" {
                 cores.push(CpuCore::new(path, items[0]));
             }
         }
