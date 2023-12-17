@@ -35,15 +35,21 @@ fn make_memory_infos(mem: &memory::Memory) -> String {
     make_http_response("text/json", &content)
 }
 
-fn make_disk_infos(disk: &disk::Disk) -> String {
-    let content = format!(r#"{{"used":{},"free":{}}}"#,
-        disk.used,
-        disk.free);
+fn make_disk_infos(disks: &Vec<disk::Disk>) -> String {
+    let mut content = Vec::new();
+    for disk in disks {
+        content.push(format!(r#"{{"label":"{}","used":{},"free":{}}}"#,
+                                disk.label,
+                                disk.used,
+                                disk.free));
+    }
+
+    let content = content.join(",");
+    let content = format!("[{}]",content);
     make_http_response("text/json", &content)
 }
 
 fn main() {
-
     let cpu = cpu::Cpu::new(cpu::CPU_STAT_FILE);
     let records = Vec::<CoreTimeRecord>::new();
     let m = std::sync::Arc::new(std::sync::Mutex::new(records));
@@ -115,8 +121,27 @@ fn main() {
             let response = make_memory_infos(&mem);
             stream.write_all(response.as_bytes()).unwrap();
         } else if request.contains("GET /disk HTTP/1.1") {
-            let disk = disk::Disk::read(disk::DISK_ROOT_FILE);
-            let response = make_disk_infos(&disk);
+            let labels = disk::Disk::list_labels(disk::DISK_LABEL_PATH);
+            let mut disks = Vec::new();
+            let mut has_rootfs = false;
+            for label in labels {                
+                let device = disk::Disk::find_device(disk::DISK_LABEL_PATH, &label);
+                let path = disk::Disk::find_path(disk::DISK_MOUNT_FILE, &device);
+                let mut disk = disk::Disk::new(&label);
+                disk.read(&path);
+                disks.push(disk);
+
+                if label == "rootfs" || path == "/" {
+                    has_rootfs = true;
+                }
+            }
+
+            if !has_rootfs {
+                let mut disk = disk::Disk::new("rootfs");
+                disk.read("/");
+                disks.push(disk);
+            }
+            let response = make_disk_infos(&disks);
             stream.write_all(response.as_bytes()).unwrap();
         }
     }

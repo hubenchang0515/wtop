@@ -112,26 +112,19 @@
                             v = v / 1024
                             i = i + 1
                         }
-                        return `${params.name}: ${v.toFixed(2)}${unit[i]}(${params.percent}%)`;
+                        return `${params.name} ${v.toFixed(2)}${unit[i]}(${params.percent}%)`;
                     },
                 }
             };
 
             let disk = {
                 name: 'Disk',
-                type: 'pie',
+                type: 'sunburst',
                 center: ['75%', '75%'],
                 radius: ['0%', '40%'],
                 color: ['#f50057', '#03a9f4'],
                 tooltip: {
                     trigger: 'item',
-                    formatter: '{a} <br/>{b}: {c}'
-                },
-                data: [
-                    {name: 'Used', value: 10}, 
-                    {name: 'Free', value: 100}
-                ],
-                label: {
                     formatter: (params) => {
                         const unit = ['B', 'KB', 'MB', 'GB', 'TB'];
                         let v = params.value;
@@ -140,8 +133,36 @@
                             v = v / 1024
                             i = i + 1
                         }
-                        return `${params.name}: ${v.toFixed(2)}${unit[i]}(${params.percent}%)`;
+                        return `${params.name}\n${v.toFixed(2)}${unit[i]}`;
+                    }
+                },
+                data: [{
+                    name: "Total",
+                    value: 0,
+                    itemStyle: {
+                        color: '#304ffe'
                     },
+                    children: []
+                }],
+                label: {
+                    formatter: (params) => {
+                        if (params.value / disk.data[0].value < 0.05){
+                            return ' ';
+                        }
+
+                        if (params.value / disk.data[0].value < 0.1){
+                            return params.name;
+                        }
+                        const unit = ['B', 'KB', 'MB', 'GB', 'TB'];
+                        let v = params.value;
+                        let i = 0;
+                        while (v > 1024 && i + 1 < unit.length) {
+                            v = v / 1024
+                            i = i + 1
+                        }
+                        return `${params.name}\n${v.toFixed(2)}${unit[i]}`;
+                    },
+                    rotate:0
                 }
             };
 
@@ -174,6 +195,7 @@
                             cpu_lines.push({
                                 name: label,
                                 type: 'line',
+                                smooth: true,
                                 stack: 'Total',
                                 areaStyle: {},
                                 data: [response.usages[index]]
@@ -217,8 +239,38 @@
                         return;
 
                     let response = JSON.parse(diskRequest.response);
-                    disk.data[0].value = response.used;
-                    disk.data[1].value = response.free;
+                    let total = 0;
+                    disk.data[0].children = [];
+                    response.forEach((ele) => {
+                        if (ele.used + ele.free == 0) {
+                            return;
+                        }
+                        total += ele.used + ele.free;
+                        disk.data[0].children.push({
+                            name: ele.label,
+                            value: ele.used + ele.free,
+                            itemStyle: {
+                                color: '#304ffe'
+                            },
+                            children: [
+                                {
+                                    name: "Used",
+                                    value: ele.used,
+                                    itemStyle: {
+                                        color: '#f50057'
+                                    }
+                                },
+                                {
+                                    name: "Free",
+                                    value: ele.free,
+                                    itemStyle: {
+                                        color: '#03a9f4'
+                                    }
+                                }
+                            ]
+                        });
+                    });
+                    disk.data[0].value = total;
                     refresh();
                 }
                 diskRequest.send();
