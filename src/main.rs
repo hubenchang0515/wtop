@@ -6,19 +6,33 @@ mod disk;
 const INDEX_HTML:&str = include_str!("index.html");
 const ECHARTS_JS:&str = include_str!("echarts.min.js");
 
-struct CoreTimeRecord {
-    core: cpu::CpuCore,
-    last_time: cpu::CpuCoreTime,
-    delta: cpu::CpuCoreTimeDelta,
+struct Record {
+    index_html: String,
+    echarts_js: String,
+    cpu_infos: String,
+    memory_infos: String,
+    disk_infos: String,
+}
+
+impl Record {
+    fn new() -> Record {
+        Record { 
+            index_html: String::new(), 
+            echarts_js: String::new(),
+            cpu_infos: String::new(),
+            memory_infos: String::new(),
+            disk_infos: String::new(),
+        }
+    }
 }
 
 fn make_http_response(content_type:&str, content:&str) -> String {
     format!("HTTP/1.1 200 OK\r\nContent-Type:{}\r\nContent-Length:{}\r\n\r\n{}", content_type, content.len(), content)
 }
 
-fn make_cpu_infos(cpus:&Vec<String>, usages:&Vec<String>, thermal:f32) -> String {
+fn make_cpu_infos(names:&Vec<String>, usages:&Vec<String>, thermal:f32) -> String {
     let content = format!(r#"{{"labels":[{}],"usages":[{}],"thermal":{}}}"#, 
-        cpus.join(","), 
+        names.join(","), 
         usages.join(","),
         thermal);
     make_http_response("text/json", &content)
@@ -51,87 +65,49 @@ fn make_disk_infos(disks: &Vec<disk::Disk>) -> String {
 }
 
 fn main() {
-    let cpu = cpu::Cpu::new(cpu::CPU_STAT_FILE);
-    let records = Vec::<CoreTimeRecord>::new();
-    let m = std::sync::Arc::new(std::sync::Mutex::new(records));
-    let m2 = m.clone();
+    let record = Record::new();
+    let rwlock = std::sync::Arc::new(std::sync::RwLock::new(record));
     
+    let lock = rwlock.clone();
     std::thread::spawn(move || {
+        let cpu = cpu::Cpu::new(cpu::CPU_STAT_FILE);
+        let mut record: std::sync::RwLockWriteGuard<'_, Record> = lock.write().unwrap();
+        record.index_html = make_http_response("text/html", &INDEX_HTML);
+        record.echarts_js = make_http_response("application/javascript", &ECHARTS_JS);
+        drop(record);
         loop {
+            let mut names = Vec::new();
+            let mut usages = Vec::new();
+            let mut core_times = Vec::new();
             for core in &cpu.cores {
-                let mut records = m2.lock().unwrap();
-                let time = core.get_time();
-
-                let mut exist = false;
-                for record in &mut *records {
-                    if record.core.name == core.name {
-                        let delta = time.delta(&record.last_time);
-                        record.last_time = time;
-                        record.delta = delta;
-                        exist = true;
-                        break;
-                    }
-                }
-
-                if !exist { 
-                    let time = core.get_time();
-                    (*records).push(CoreTimeRecord{
-                        core: cpu::CpuCore::new(cpu::CPU_STAT_FILE, &core.name),
-                        last_time: time,
-                        delta: cpu::CpuCoreTimeDelta::new(),
-                    });
-                }
+                let name = format!("\"{}\"", core.name);
+                names.push(name);
+                core_times.push(core.get_time());
             }
             std::thread::sleep(Duration::from_secs(1));
-        }
-    });
-
-    let index_html_response = make_http_response("text/html", &INDEX_HTML).into_bytes();
-    let echarts_js_response = make_http_response("application/javascript", &ECHARTS_JS).into_bytes();
-    let server = std::net::TcpListener::bind("0.0.0.0:1995").unwrap();
-    println!("http://localhost:1995");
-    for stream in server.incoming() {
-        let mut stream = stream.unwrap();
-        let mut reader = BufReader::new(&stream);
-        let mut request = String::new();
-        if reader.read_line(&mut request).is_err() {
-            continue;
-        }
-
-        if request.contains("GET / HTTP/1.1") {
-            stream.write_all(&index_html_response).unwrap();
-        } else if request.contains("GET /echarts.min.js HTTP/1.1") {
-            stream.write_all(&echarts_js_response).unwrap();
-        } else if request.contains("GET /cpu HTTP/1.1") {
-            let records = m.lock().unwrap();
-            let mut cpus = Vec::<String>::new();
-            let mut usages = Vec::<String>::new();
-            for record in &(*records) {
-                if record.core.name == "cpu" {
-                    continue;
-                }
-                let name = format!("\"{}\"", &record.core.name);
-                let usage = format!("{}", record.delta.usage());
-                cpus.push(name);
-                usages.push(usage)
+            for i in 0..cpu.cores.len() {
+                let delta = cpu.cores[i].get_time().delta(&core_times[i]);
+                let usage = format!("{}", delta.usage());
+                usages.push(usage);
             }
-            let response = make_cpu_infos(&cpus, &usages, cpu::Cpu::thermal(cpu::CPU_THERMAL_FILE));
-            stream.write_all(response.as_bytes()).unwrap();
-        } else if request.contains("GET /memory HTTP/1.1") {
+            let mut record: std::sync::RwLockWriteGuard<'_, Record> = lock.write().unwrap();
+            record.cpu_infos = make_cpu_infos(&names, &usages, cpu::Cpu::thermal(cpu::CPU_THERMAL_FILE));
+            drop(record);
+
             let mem = memory::Memory::read(memory::MEMINFO_FILE);
-            let response = make_memory_infos(&mem);
-            stream.write_all(response.as_bytes()).unwrap();
-        } else if request.contains("GET /disk HTTP/1.1") {
-            let labels = disk::Disk::list_labels(disk::DISK_LABEL_PATH);
+            let mut record: std::sync::RwLockWriteGuard<'_, Record> = lock.write().unwrap();
+            record.memory_infos = make_memory_infos(&mem);
+            drop(record);
+
             let mut disks = Vec::new();
             let mut has_rootfs = false;
-            for label in labels {                
+            let disk_labels = disk::Disk::list_labels(disk::DISK_LABEL_PATH);
+            for label in disk_labels {
+                let mut disk = disk::Disk::new(&label);
                 let device = disk::Disk::find_device(disk::DISK_LABEL_PATH, &label);
                 let path = disk::Disk::find_path(disk::DISK_MOUNT_FILE, &device);
-                let mut disk = disk::Disk::new(&label);
                 disk.read(&path);
                 disks.push(disk);
-
                 if label == "rootfs" || path == "/" {
                     has_rootfs = true;
                 }
@@ -142,9 +118,36 @@ fn main() {
                 disk.read("/");
                 disks.push(disk);
             }
-            let response = make_disk_infos(&disks);
-            stream.write_all(response.as_bytes()).unwrap();
+            let mut record: std::sync::RwLockWriteGuard<'_, Record> = lock.write().unwrap();
+            record.disk_infos = make_disk_infos(&disks);
+            drop(record);
         }
+    });
+
+    let server = std::net::TcpListener::bind("0.0.0.0:1995").unwrap();
+    println!("http://localhost:1995");
+    for stream in server.incoming() {
+        let lock = rwlock.clone();
+        std::thread::spawn(move || {
+            let record = lock.read().unwrap();
+            let mut stream = stream.unwrap();
+            let mut reader = BufReader::new(&stream);
+            let mut request = String::new();
+            if reader.read_line(&mut request).is_err() {
+                return;
+            }
+
+            if request.contains("GET / HTTP/1.1") {
+                stream.write_all(&record.index_html.as_bytes()).unwrap();
+            } else if request.contains("GET /echarts.min.js HTTP/1.1") {
+                stream.write_all(&record.echarts_js.as_bytes()).unwrap();
+            } else if request.contains("GET /cpu HTTP/1.1") {
+                stream.write_all(&record.cpu_infos.as_bytes()).unwrap();
+            } else if request.contains("GET /memory HTTP/1.1") {
+                stream.write_all(&record.memory_infos.as_bytes()).unwrap();
+            } else if request.contains("GET /disk HTTP/1.1") {
+                stream.write_all(&record.disk_infos.as_bytes()).unwrap();
+            }
+        });
     }
-    
 }

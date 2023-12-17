@@ -55,7 +55,7 @@ impl Disk {
     pub fn find_device(label_dir_path:&str, label:&str) -> String {
         let dir = std::path::Path::new(label_dir_path);
         let link = std::fs::read_link(dir.join(label)).unwrap();
-        String::from(dir.join(link).canonicalize().unwrap().to_str().unwrap())
+        String::from(dir.join(link).canonicalize().unwrap_or_default().to_str().unwrap())
     }
 
     pub fn find_path(mount_file_path:&str, device_path:&str) -> String {

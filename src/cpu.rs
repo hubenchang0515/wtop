@@ -75,11 +75,6 @@ impl CpuCoreTime {
 }
 
 impl CpuCoreTimeDelta {
-    pub fn new() -> CpuCoreTimeDelta {
-        CpuCoreTimeDelta {
-            0:CpuCoreTime::new(),
-        }
-    }
     pub fn usage(&self) -> f32 {
         (self.0.total() as f32 - self.0.idle as f32) / self.0.total() as f32 * 100.0
     }
