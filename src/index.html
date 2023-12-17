@@ -14,7 +14,7 @@
                     {text: 'Disk Usage', top: '50%', left: '50%'}
                 ],
                 tooltip: {
-                    trigger: "axis"
+                    trigger: "item"
                 },
                 radar: {
                     center: ['35%', '25%'],
@@ -24,9 +24,12 @@
                 grid: [
                     {
                         left: '50%',
-                        right: 50,
+                        right: '2%',
                         height: '40%',
-                        containLabel: true
+                        containLabel: true,
+                        tooltip: {
+                            trigger: 'axis'
+                        }
                     },
                 ],
                 xAxis: {
@@ -34,7 +37,7 @@
                     type: 'category',
                     data:Array.from({length:60}, (v,k) => 60 - k),
                     axisTick:{ show:false },
-                    axisLabel:{ show:false }
+                    axisLabel:{ show:false },
                 },
                 yAxis: {gridIndex: 0, type: 'value', min: 0, max: 100},
                 series: []
@@ -200,14 +203,67 @@
             };
 
             let chart = echarts.init(document.getElementById('main'));
+
+            let resize = () => {
+                if (window.innerWidth > window.innerHeight) {
+                    option.title[0].top = 0;
+                    option.title[0].left = 0;
+                    option.title[1].top = '50%';
+                    option.title[1].left = 0;
+                    option.title[2].top = '50%';
+                    option.title[2].left = '50%';
+                    cpu_thermal.center = ['15%', '25%'];
+                    cpu_thermal.radius = '30%';
+                    option.radar.center = ['35%', '25%'];
+                    option.radar.radius = '30%';
+                    option.grid[0].top = '5%';
+                    option.grid[0].left = '50%';
+                    option.grid[0].right = '2%';
+                    option.grid[0].height = '40%';
+                    memory.center = ['25%', '75%'];
+                    memory.radius = [0, '25%'];
+                    swap.center = ['25%', '75%'];
+                    swap.radius = ['30%', '40%'];
+                    disk.center = ['75%', '75%'];
+                    disk.radius = ['0%', '40%'];
+
+                } else {
+                    option.title[0].top = 0;
+                    option.title[0].left = 0;
+                    option.title[1].top = '66%';
+                    option.title[1].left = 0;
+                    option.title[2].top = '66%';
+                    option.title[2].left = '50%';
+                    cpu_thermal.center = ['25%', '15%'];
+                    cpu_thermal.radius = '40%';
+                    option.radar.center = ['75%', '15%'];
+                    option.radar.radius = '40%';
+                    option.grid[0].top = '33%';
+                    option.grid[0].left = '2%';
+                    option.grid[0].right = '2%';
+                    option.grid[0].height = '30%';
+                    memory.center = ['25%', '85%'];
+                    memory.radius = [0, '25%'];
+                    swap.center = ['25%', '85%'];
+                    swap.radius = ['30%', '40%'];
+                    disk.center = ['75%', '85%'];
+                    disk.radius = ['0%', '40%'];
+                }
+            }
+
             let refresh = () => {
                 option.radar.indicator = radar_indicator;
+                resize();
                 option.series = [
                     cpu_thermal, cpu_radar, memory, swap, disk
                 ];
                 option.series = option.series.concat(cpu_lines);
                 chart.setOption(option);
             }
+
+            window.onresize = function(){
+                chart.resize();
+            };
 
             setInterval(() => {
                 let cpuRequest = new XMLHttpRequest();
@@ -224,6 +280,7 @@
                         });
                     }
                     if (cpu_lines.length != response.labels.length) {
+                        cpu_lines = [];
                         response.labels.forEach((label, index) => {
                             cpu_lines.push({
                                 name: label,
