@@ -2,6 +2,8 @@
 // 参考: https://man7.org/linux/man-pages/man5/proc.5.html
 
 pub const CPU_STAT_FILE:&str = "/proc/stat";
+pub const CPU_THERMAL_FILE:&str = "/sys/devices/virtual/thermal/thermal_zone0/temp";
+
 const CPU_ITEMS:usize = 11;
 
 #[derive(Debug)]
@@ -147,5 +149,11 @@ impl Cpu {
             }
         }
         Cpu { cores }
+    }
+
+    pub fn thermal(path:&str) -> f32 {
+        let content = std::fs::read_to_string(path).unwrap();
+        let content = content.trim();
+        content.parse::<f32>().unwrap() / 1000.0
     }
 }

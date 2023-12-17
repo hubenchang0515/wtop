@@ -1,6 +1,7 @@
 <html>
     <head>
         <title>WTOP</title>
+        <meta charset="utf-8"/>
         <script src="/echarts.min.js"></script>
     </head>
     <body>
@@ -16,8 +17,8 @@
                     trigger: "axis"
                 },
                 radar: {
-                    center: ['25%', '25%'],
-                    radius: '40%',
+                    center: ['35%', '25%'],
+                    radius: '30%',
                     indicator: []
                 },
                 grid: [
@@ -40,6 +41,38 @@
             };
 
             let radar_indicator = [];
+
+            let cpu_thermal = {
+                name: 'CPU',
+                type: 'gauge',
+                center: ['15%', '25%'],
+                radius: '30%',
+                startAngle: 200,
+                endAngle: -20,
+                min: 0,
+                max: 100,
+                splitNumber: 10,
+                itemStyle: {
+                    color: '#FFAB91'
+                },
+                progress: {
+                    show: true,
+                },
+                pointer: {
+                    show: false,
+                },
+                detail: {
+                    valueAnimation: true,
+                    offsetCenter: [0, '-15%'],
+                    formatter: '{value} °C',
+                    color: 'inherit'
+                },
+                data: [
+                    {
+                        value: 50,
+                    }
+                ]
+            }
 
             let cpu_radar = {
                 name: 'CPU',
@@ -170,7 +203,7 @@
             let refresh = () => {
                 option.radar.indicator = radar_indicator;
                 option.series = [
-                    cpu_radar, memory, swap, disk
+                    cpu_thermal, cpu_radar, memory, swap, disk
                 ];
                 option.series = option.series.concat(cpu_lines);
                 chart.setOption(option);
@@ -210,6 +243,14 @@
                             cpu_lines[index].data.shift();
                         }
                     });
+                    cpu_thermal.data[0].value = response.thermal.toFixed(1);
+                    if (response.thermal > 80) {
+                        cpu_thermal.itemStyle.color = '#ff1744';
+                    } else if (response.thermal > 60) {
+                        cpu_thermal.itemStyle.color = '#ffab91';
+                    } else {
+                        cpu_thermal.itemStyle.color = '#1de9b6';
+                    }
                     refresh();
                 }
                 cpuRequest.send();

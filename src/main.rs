@@ -16,10 +16,11 @@ fn make_http_response(content_type:&str, content:&str) -> String {
     format!("HTTP/1.1 200 OK\r\nContent-Type:{}\r\nContent-Length:{}\r\n\r\n{}", content_type, content.len(), content)
 }
 
-fn make_cpu_infos(cpus:&Vec<String>, usages:&Vec<String>) -> String {
-    let content = format!(r#"{{"labels":[{}],"usages":[{}]}}"#, 
+fn make_cpu_infos(cpus:&Vec<String>, usages:&Vec<String>, thermal:f32) -> String {
+    let content = format!(r#"{{"labels":[{}],"usages":[{}],"thermal":{}}}"#, 
         cpus.join(","), 
-        usages.join(","));
+        usages.join(","),
+        thermal);
     make_http_response("text/json", &content)
 }
 
@@ -114,7 +115,7 @@ fn main() {
                 cpus.push(name);
                 usages.push(usage)
             }
-            let response = make_cpu_infos(&cpus, &usages);
+            let response = make_cpu_infos(&cpus, &usages, cpu::Cpu::thermal(cpu::CPU_THERMAL_FILE));
             stream.write_all(response.as_bytes()).unwrap();
         } else if request.contains("GET /memory HTTP/1.1") {
             let mem = memory::Memory::read(memory::MEMINFO_FILE);
