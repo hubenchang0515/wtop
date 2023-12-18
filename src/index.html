@@ -116,12 +116,7 @@
                     trigger: 'item',
                     formatter: '{a} <br/>{b}: {c}'
                 },
-                data: [
-                    {name: 'Used', value: 10}, 
-                    {name: 'Buffers', value: 10},
-                    {name: 'Cached', value: 10},
-                    {name: 'Free', value: 100},
-                ],
+                data: [],
                 label: {
                     formatter: (params) => {
                         const unit = ['KB', 'MB', 'GB', 'TB'];
@@ -146,11 +141,7 @@
                     trigger: 'item',
                     formatter: '{a} <br/>{b}: {c}'
                 },
-                data: [
-                    {name: 'Used', value: 10}, 
-                    {name: 'Cached', value: 10},
-                    {name: 'Free', value: 100}
-                ],
+                data: [],
                 label: {
                     formatter: (params) => {
                         const unit = ['KB', 'MB', 'GB', 'TB'];
@@ -341,13 +332,19 @@
                         return;
 
                     let response = JSON.parse(memRequest.response);
-                    memory.data[0].value = response.used;
-                    memory.data[1].value = response.buffers;
-                    memory.data[2].value = response.cached;
-                    memory.data[3].value = response.free;
-                    swap.data[0].value = response.swap_used;
-                    swap.data[1].value = response.swap_cached;
-                    swap.data[2].value = response.swap_free;
+                    memory.data[0] = {name: 'Used', value: response.used};
+                    memory.data[1] = {name: 'Buffers', value: response.buffers};
+                    memory.data[2] = {name: 'Cached', value: response.cached};
+                    memory.data[3] = {name: 'Free', value: response.free};
+                
+                    if (response.swap_used > 0)
+                        swap.data[0] = {name: "Used", value: response.swap_used};
+
+                    if (response.swap_cached > 0)
+                        swap.data[1] = {name: "Cached", value: response.swap_cached};
+
+                    if (response.swap_free > 0)
+                        swap.data[2] = {name: "Free", value: response.swap_free};
                     refresh();
                 }
                 memRequest.send();
@@ -373,20 +370,20 @@
                                 color: ele.label == 'rootfs' ? '#304ffe' : '#448aff'
                             },
                             children: [
-                                {
+                                ele.used > 0 ? {
                                     name: "Used",
                                     value: ele.used,
                                     itemStyle: {
                                         color: '#f50057'
                                     }
-                                },
-                                {
+                                } : undefined,
+                                ele.free > 0 ? {
                                     name: "Free",
                                     value: ele.free,
                                     itemStyle: {
                                         color: '#03a9f4'
                                     }
-                                }
+                                } : undefined
                             ]
                         });
                     });
