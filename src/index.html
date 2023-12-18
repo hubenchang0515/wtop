@@ -254,14 +254,14 @@
                 }
             }
 
-            let refresh = () => {
+            let refresh = (clear=false) => {
                 option.radar.indicator = radar_indicator;
                 resize();
                 option.series = [
                     cpu_thermal, cpu_radar, memory, swap, disk
                 ];
                 option.series = option.series.concat(cpu_lines);
-                chart.setOption(option, true);
+                chart.setOption(option, clear);
             }
 
             window.onresize = function(){
@@ -280,6 +280,7 @@
                     if (cpuRequest.readyState != 4 || cpuRequest.status != 200)
                         return;
                     
+                    let clear = false;
                     let response = JSON.parse(cpuRequest.response);
                     if (radar_indicator.length != response.labels.length) {
                         radar_indicator = [];
@@ -288,6 +289,7 @@
                         });
                     }
                     if (cpu_lines.length != response.labels.length) {
+                        clear = true;
                         option.yAxis.max = response.labels.length * 100;
                         option.yAxis.interval = option.yAxis.max / 10;
                         cpu_lines = [];
@@ -329,7 +331,7 @@
                     } else {
                         cpu_thermal.itemStyle.color = '#1de9b6';
                     }
-                    refresh();
+                    refresh(clear);
                 }
                 cpuRequest.send();
 
