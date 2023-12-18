@@ -60,7 +60,7 @@ impl Disk {
 
     pub fn find_path(mount_file_path:&str, device_path:&str) -> String {
         let mut path = String::new();
-        let content = std::fs::read_to_string(mount_file_path).unwrap();
+        let content = std::fs::read_to_string(mount_file_path).unwrap_or_default();
         for line in content.split("\n") {
             let items:Vec<&str> = line.split_whitespace().collect();
             if items.len() >= MOUNT_ITEMS && items[0].trim() == device_path {

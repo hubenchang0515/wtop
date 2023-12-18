@@ -38,7 +38,7 @@ impl Memory {
 
     pub fn read(path:&str) -> Memory {
         let mut memory = Memory::new();
-        let content = std::fs::read_to_string(path).unwrap();
+        let content = std::fs::read_to_string(path).unwrap_or_default();
         for line in content.split("\n") {
             let items:Vec<&str> = line.split_whitespace().collect();
             if items.len() < MEM_ITEMS {

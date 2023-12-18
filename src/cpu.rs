@@ -95,7 +95,7 @@ impl CpuCore {
     }
 
     pub fn get_time(&self) -> CpuCoreTime {
-        let content = std::fs::read_to_string(&self.path).unwrap();
+        let content = std::fs::read_to_string(&self.path).unwrap_or_default();
         let mut time = CpuCoreTime {
             user: 0,
             nice: 0,
@@ -136,7 +136,7 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(path:&str) -> Cpu {
         let mut cores = Vec::new();
-        let content = std::fs::read_to_string(path).unwrap();
+        let content = std::fs::read_to_string(path).unwrap_or_default();
         for line in content.split("\n") {
             let items:Vec<&str> = line.split_whitespace().collect();
             if items.len() >= CPU_ITEMS && items[0].trim().starts_with("cpu") && items[0].trim() != "cpu" {
@@ -147,8 +147,8 @@ impl Cpu {
     }
 
     pub fn thermal(path:&str) -> f32 {
-        let content = std::fs::read_to_string(path).unwrap();
+        let content = std::fs::read_to_string(path).unwrap_or_default();
         let content = content.trim();
-        content.parse::<f32>().unwrap() / 1000.0
+        content.parse::<f32>().unwrap_or_default() / 1000.0
     }
 }
