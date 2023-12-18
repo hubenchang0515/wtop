@@ -7,6 +7,7 @@
     <body>
         <div id="main" style="width: 100%;height: 100%;"></div>
         <script type="text/javascript">
+            const maxTime = 60;
             let option = {
                 title: [
                     {text: 'CPU Usage'},
@@ -35,11 +36,22 @@
                 xAxis: {
                     gridIndex: 0, 
                     type: 'category',
-                    data:Array.from({length:60}, (v,k) => 60 - k),
+                    data: Array.from({length:maxTime}, (v,k) => k),
                     axisTick:{ show:false },
                     axisLabel:{ show:false },
                 },
-                yAxis: {gridIndex: 0, type: 'value', min: 0, max: 100},
+                yAxis: {
+                    gridIndex: 0, 
+                    type: 'value', 
+                    min: 0, 
+                    max: 100,
+                    interval: 10,
+                    axisLabel: {
+                        formatter: (params) => {
+                            return (params / cpu_lines.length).toFixed(0) + '%';
+                        }
+                    }
+                },
                 series: []
             };
 
@@ -263,6 +275,8 @@
 
             window.onresize = function(){
                 chart.resize();
+                resize();
+                refresh();
             };
 
             setInterval(() => {
@@ -280,23 +294,28 @@
                         });
                     }
                     if (cpu_lines.length != response.labels.length) {
+                        option.yAxis.interval = response.labels.length * 100 / 10;
                         cpu_lines = [];
                         response.labels.forEach((label, index) => {
                             cpu_lines.push({
                                 name: label,
                                 type: 'line',
-                                smooth: true,
+                                animation: false,
                                 stack: 'Total',
                                 areaStyle: {},
-                                data: [response.usages[index]]
+                                data: Array.from({length:maxTime}, (v,k) => 0)
                             });
                         });
                     }
                     cpu_radar.data[0].value = response.usages;
+                    option.xAxis.data.push(new Date().toLocaleTimeString());
+                    if (option.xAxis.data.length > maxTime) {
+                        option.xAxis.data.shift();
+                    }
                     cpu_radar.data[0].value.forEach((value, index, arr) => {
                         arr[index] = value ? value.toFixed(2):0;
-                        cpu_lines[index].data.push(value ? value:0);
-                        if (cpu_lines[index].data.length > 60) {
+                        cpu_lines[index].data.push(value ? value.toFixed(2):0);
+                        if (cpu_lines[index].data.length > maxTime) {
                             cpu_lines[index].data.shift();
                         }
                     });
