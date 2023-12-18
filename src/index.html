@@ -261,7 +261,7 @@
                     cpu_thermal, cpu_radar, memory, swap, disk
                 ];
                 option.series = option.series.concat(cpu_lines);
-                chart.setOption(option);
+                chart.setOption(option, true);
             }
 
             window.onresize = function(){
@@ -282,14 +282,14 @@
                     
                     let response = JSON.parse(cpuRequest.response);
                     if (radar_indicator.length != response.labels.length) {
-                        option.yAxis.max = response.labels.length * 100;
                         radar_indicator = [];
                         response.labels.forEach((label) => {
                             radar_indicator.push({ name: label, max: 100 });
                         });
                     }
                     if (cpu_lines.length != response.labels.length) {
-                        option.yAxis.interval = response.labels.length * 100 / 10;
+                        option.yAxis.max = response.labels.length * 100;
+                        option.yAxis.interval = option.yAxis.max / 10;
                         cpu_lines = [];
                         response.labels.forEach((label, index) => {
                             cpu_lines.push({
@@ -297,7 +297,7 @@
                                 type: 'line',
                                 smooth: true,
                                 showSymbol: false,
-                                stack: 'Total',
+                                stack: 'x',
                                 areaStyle: {},
                                 lineStyle: {
                                     width: 0
