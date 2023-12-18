@@ -134,16 +134,21 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(path:&str) -> Cpu {
-        let mut cores = Vec::new();
+    pub fn new() -> Cpu {
+        Cpu { 
+            cores: Vec::new()
+        }
+    }
+
+    pub fn scan(&mut self, path:&str) {
+        self.cores.clear();
         let content = std::fs::read_to_string(path).unwrap_or_default();
         for line in content.split("\n") {
             let items:Vec<&str> = line.split_whitespace().collect();
             if items.len() >= CPU_ITEMS && items[0].trim().starts_with("cpu") && items[0].trim() != "cpu" {
-                cores.push(CpuCore::new(path, items[0]));
+                self.cores.push(CpuCore::new(path, items[0]));
             }
         }
-        Cpu { cores }
     }
 
     pub fn thermal(path:&str) -> f32 {

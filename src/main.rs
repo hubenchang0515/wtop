@@ -70,7 +70,7 @@ fn main() {
     
     let lock = rwlock.clone();
     std::thread::spawn(move || {
-        let cpu = cpu::Cpu::new(cpu::CPU_STAT_FILE);
+        let mut cpu = cpu::Cpu::new();
         let mut record: std::sync::RwLockWriteGuard<'_, Record> = lock.write().unwrap();
         record.index_html = make_http_response("text/html", &INDEX_HTML);
         record.echarts_js = make_http_response("application/javascript", &ECHARTS_JS);
@@ -79,6 +79,7 @@ fn main() {
             let mut names = Vec::new();
             let mut usages = Vec::new();
             let mut core_times = Vec::new();
+            cpu.scan(cpu::CPU_STAT_FILE);
             for core in &cpu.cores {
                 let name = format!("\"{}\"", core.name);
                 names.push(name);
