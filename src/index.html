@@ -280,6 +280,9 @@
             };
 
             setInterval(() => {
+                if (document.visibilityState == Document.hidden) {
+                    return;
+                }
                 let cpuRequest = new XMLHttpRequest();
                 cpuRequest.open('GET', '/cpu', true);
                 cpuRequest.onreadystatechange = () => {
