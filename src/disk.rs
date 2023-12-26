@@ -46,8 +46,10 @@ impl Disk {
 
     pub fn list_labels(label_dir_path:&str) -> Vec<String> {
         let mut labels = Vec::new();
-        for entry in std::fs::read_dir(label_dir_path).unwrap() {
-            labels.push(String::from(entry.unwrap().file_name().to_str().unwrap()));
+        if let Ok(entirs) = std::fs::read_dir(label_dir_path) {
+            for entry in entirs {
+                labels.push(String::from(entry.unwrap().file_name().to_str().unwrap()));
+            }
         }
         labels
     }
